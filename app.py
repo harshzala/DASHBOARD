@@ -178,8 +178,51 @@ app.layout = dbc.Container([
         ], width=True, style={"display": "flex", "alignItems": "center", "justifyContent": "center"})
     ], className="mb-4"),
 
-    # Summary Cards
-    dbc.Row(id='summary-cards', className="g-2 mb-4"),
+    # Summary Cards (STATIC, not dynamic)
+    dbc.Row([
+        dbc.Col(dbc.Card(dbc.Button([
+            html.Div([
+                html.I(className="bi bi-archive-fill me-2", style={"fontSize": "1.5rem"}),
+                html.H3(id="total-items-value", className="mb-0 fw-bold", style={"fontSize": "2rem"}),
+            ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"}),
+            html.P("Total Maintenance Items", className="mb-0 mt-2", style={"fontSize": "0.9rem", "textAlign": "center"})
+        ], id="total-items-card", className="w-100 h-100", color="primary", style={"border": "none", "boxShadow": "0 4px 12px rgba(0,0,0,0.1)", "padding": "20px", "borderRadius": "8px", "transition": "all 0.3s ease"}, n_clicks=0)), width=2),
+        dbc.Col(dbc.Card(dbc.Button([
+            html.Div([
+                html.I(className="bi bi-bar-chart-fill me-2", style={"fontSize": "1.5rem"}),
+                html.H3(id="completion-rate-value", className="mb-0 fw-bold", style={"fontSize": "2rem"}),
+            ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"}),
+            html.P("Overall Completion Rate", className="mb-0 mt-2", style={"fontSize": "0.9rem", "textAlign": "center"})
+        ], id="completion-rate-card", className="w-100 h-100", color="info", style={"border": "none", "boxShadow": "0 4px 12px rgba(0,0,0,0.1)", "padding": "20px", "borderRadius": "8px", "transition": "all 0.3s ease"}, n_clicks=0)), width=2),
+        dbc.Col(dbc.Card(dbc.Button([
+            html.Div([
+                html.I(className="bi bi-hourglass-split me-2", style={"fontSize": "1.5rem"}),
+                html.H3(id="not-started-value", className="mb-0 fw-bold", style={"fontSize": "2rem"}),
+            ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"}),
+            html.P("Items Not Started", className="mb-0 mt-2", style={"fontSize": "0.9rem", "textAlign": "center"})
+        ], id="not-started-card", className="w-100 h-100", color="warning", style={"border": "none", "boxShadow": "0 4px 12px rgba(0,0,0,0.1)", "padding": "20px", "borderRadius": "8px", "transition": "all 0.3s ease"}, n_clicks=0)), width=2),
+        dbc.Col(dbc.Card(dbc.Button([
+            html.Div([
+                html.I(className="bi bi-exclamation-triangle-fill me-2", style={"fontSize": "1.5rem"}),
+                html.H3(id="high-priority-value", className="mb-0 fw-bold", style={"fontSize": "2rem"}),
+            ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"}),
+            html.P("High Priority Items", className="mb-0 mt-2", style={"fontSize": "0.9rem", "textAlign": "center"})
+        ], id="high-priority-card", className="w-100 h-100", color="danger", style={"border": "none", "boxShadow": "0 4px 12px rgba(0,0,0,0.1)", "padding": "20px", "borderRadius": "8px", "transition": "all 0.3s ease"}, n_clicks=0)), width=2),
+        dbc.Col(dbc.Card(dbc.Button([
+            html.Div([
+                html.I(className="bi bi-droplet-fill me-2", style={"fontSize": "1.5rem"}),
+                html.H3(id="total-paint-value", className="mb-0 fw-bold", style={"fontSize": "2rem"}),
+            ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"}),
+            html.P("Total Paint Usage (gal)", className="mb-0 mt-2", style={"fontSize": "0.9rem", "textAlign": "center"})
+        ], id="total-paint-card", className="w-100 h-100", color="secondary", style={"border": "none", "boxShadow": "0 4px 12px rgba(0,0,0,0.1)", "padding": "20px", "borderRadius": "8px", "transition": "all 0.3s ease"}, n_clicks=0)), width=2),
+        dbc.Col(dbc.Card(dbc.Button([
+            html.Div([
+                html.I(className="bi bi-shield-lock-fill me-2", style={"fontSize": "1.5rem"}),
+                html.H3(id="avg-risk-value", className="mb-0 fw-bold", style={"fontSize": "2rem"}),
+            ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"}),
+            html.P("Average Risk Rating", className="mb-0 mt-2", style={"fontSize": "0.9rem", "textAlign": "center"})
+        ], id="avg-risk-card", className="w-100 h-100", color="dark", style={"border": "none", "boxShadow": "0 4px 12px rgba(0,0,0,0.1)", "padding": "20px", "borderRadius": "8px", "transition": "all 0.3s ease"}, n_clicks=0)), width=2),
+    ], className="g-2 mb-4"),
 
     # Main Charts
     dbc.Row([
@@ -324,7 +367,12 @@ app.layout = dbc.Container([
 # --- Main Dashboard Callback ---
 @callback(
     Output('last-refresh', 'children'),
-    Output('summary-cards', 'children'),
+    Output('total-items-value', 'children'),
+    Output('completion-rate-value', 'children'),
+    Output('not-started-value', 'children'),
+    Output('high-priority-value', 'children'),
+    Output('total-paint-value', 'children'),
+    Output('avg-risk-value', 'children'),
     Output('status-pie', 'figure'),
     Output('priority-bar', 'figure'),
     Output('deck-bar', 'figure'),
@@ -372,24 +420,7 @@ def update_dashboard(n_clicks, n_intervals, not_started_click, high_priority_cli
 
     filtered_stats = get_dashboard_stats(filtered_df)
 
-    # Summary Cards
-    cards = [
-        summary_card(filtered_stats["total_items"], "Total Maintenance Items", "primary",
-                     id="total-items-card", icon="bi-archive-fill"),
-        summary_card(f"{filtered_stats['completion_rate']:.1f}%", "Overall Completion Rate", "info",
-                     icon="bi-bar-chart-fill"),
-        summary_card(filtered_stats["not_started"], "Items Not Started", "warning",
-                     id="not-started-card", icon="bi-hourglass-split"),
-        summary_card(filtered_stats["high_priority"], "High Priority Items", "danger",
-                     id="high-priority-card", icon="bi-exclamation-triangle-fill"),
-        summary_card(f"{filtered_stats['total_paint_usage']:.0f}", "Total Paint Usage (gal)", "secondary",
-                     icon="bi-droplet-fill"),
-        summary_card(f"{filtered_stats['avg_risk_rating']:.1f}", "Average Risk Rating", "dark",
-                     icon="bi-shield-lock-fill"),
-    ]
-
-    # Charts with animations
-    # Status Pie Chart
+    # Charts with animations (same as before)
     status_counts = filtered_df['Status'].value_counts()
     pie_fig = px.pie(
         values=status_counts.values,
@@ -405,7 +436,6 @@ def update_dashboard(n_clicks, n_intervals, not_started_click, high_priority_cli
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
 
-    # Priority Bar Chart
     if 'Priority' in filtered_df.columns:
         priority_counts = filtered_df['Priority'].value_counts()
         bar_fig = px.bar(
@@ -423,7 +453,6 @@ def update_dashboard(n_clicks, n_intervals, not_started_click, high_priority_cli
         bar_fig = go.Figure()
         bar_fig.add_annotation(text="No Priority Data Available", x=0.5, y=0.5, showarrow=False)
 
-    # Deck Bar Chart
     deck_col = 'DECK LEVEL' if 'DECK LEVEL' in filtered_df.columns else 'Deck Level'
     if deck_col in filtered_df.columns:
         deck_counts = filtered_df[deck_col].value_counts()
@@ -442,7 +471,6 @@ def update_dashboard(n_clicks, n_intervals, not_started_click, high_priority_cli
         deck_fig = go.Figure()
         deck_fig.add_annotation(text="No Deck Level Data Available", x=0.5, y=0.5, showarrow=False)
 
-    # Risk vs Priority Scatter
     if 'Risk Rating' in filtered_df.columns and 'Priority' in filtered_df.columns:
         risk_fig = px.strip(
             filtered_df,
@@ -460,7 +488,6 @@ def update_dashboard(n_clicks, n_intervals, not_started_click, high_priority_cli
         risk_fig = go.Figure()
         risk_fig.add_annotation(text="No Risk/Priority Data Available", x=0.5, y=0.5, showarrow=False)
 
-    # Recent Items Table
     table_fields = ['DATE ADDED', 'ASSET TAG', 'LOCATION DESCRIPTION', 'Status', 'Priority', 'Percent Complete']
     table_fields = [f for f in table_fields if f in filtered_df.columns]
 
@@ -473,7 +500,12 @@ def update_dashboard(n_clicks, n_intervals, not_started_click, high_priority_cli
 
     return (
         f"🕐 Last Updated: {last_refresh}",
-        cards,
+        filtered_stats["total_items"],
+        f"{filtered_stats['completion_rate']:.1f}%",
+        filtered_stats["not_started"],
+        filtered_stats["high_priority"],
+        f"{filtered_stats['total_paint_usage']:.0f}",
+        f"{filtered_stats['avg_risk_rating']:.1f}",
         pie_fig,
         bar_fig,
         deck_fig,
