@@ -75,7 +75,12 @@ def get_dashboard_stats(df):
 
 
 # --- Dash App ---
-app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY, dbc.icons.BOOTSTRAP])
+# Fallback link for Bootstrap Icons for wider compatibility (works even if `dbc.icons` is not available).
+# If you upgrade dash-bootstrap-components to >=1.1 this constant is available as `dbc.icons.BOOTSTRAP` again.
+BOOTSTRAP_ICON_CSS = "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css"
+
+# Build the Dash application instance.
+app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY, BOOTSTRAP_ICON_CSS])
 app.title = "Maintenance & Asset Integrity Dashboard"
 app.config.suppress_callback_exceptions = True
 
@@ -444,18 +449,27 @@ def update_dashboard(n_clicks, n_intervals, not_started_click, high_priority_cli
 
     # Risk vs Priority Scatter
     if 'Risk Rating' in filtered_df.columns and 'Priority' in filtered_df.columns:
-        risk_fig = px.strip(
-            filtered_df,
-            x='Priority',
-            y='Risk Rating',
-            title='Risk Rating Distribution by Priority',
-            color='Priority',
-            stripmode='overlay',
-            hover_data=['ASSET TAG'] if 'ASSET TAG' in filtered_df.columns else None
-        )
-        risk_fig.update_layout(
-            transition={'duration': 500, 'easing': 'cubic-in-out'}
-        )
+        # Use `px.strip` if available (Plotly ≥ 5.15). Otherwise gracefully fall back to a scatter plot.
+        if hasattr(px, "strip"):
+            risk_fig = px.strip(
+                filtered_df,
+                x='Priority',
+                y='Risk Rating',
+                title='Risk Rating Distribution by Priority',
+                color='Priority',
+                stripmode='overlay',
+                hover_data=['ASSET TAG'] if 'ASSET TAG' in filtered_df.columns else None
+            )
+        else:
+            risk_fig = px.scatter(
+                filtered_df,
+                x='Priority',
+                y='Risk Rating',
+                title='Risk Rating vs. Priority (fallback visualisation)',
+                color='Priority',
+                hover_data=['ASSET TAG'] if 'ASSET TAG' in filtered_df.columns else None
+            )
+        risk_fig.update_layout(transition={'duration': 500, 'easing': 'cubic-in-out'})
     else:
         risk_fig = go.Figure()
         risk_fig.add_annotation(text="No Risk/Priority Data Available", x=0.5, y=0.5, showarrow=False)
