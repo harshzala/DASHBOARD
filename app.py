@@ -3,18 +3,23 @@ import pandas as pd
 from datetime import datetime
 import threading
 
-from dash import Dash, dcc, html, Input, Output, State, dash_table, callback_context, callback, no_update
+from dash import Dash, dcc, html, Input, Output, State, dash_table, callback_context, no_update, callback
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
 
 # --- CONFIGURATION (LOCAL TEST) ---
-LOCAL_EXCEL_PATH = r"C:\test\demo.xlsx"
+LOCAL_EXCEL_PATH = "/tmp/demo.xlsx"  # Changed from Windows path to Linux path
 
 
 def fetch_excel_from_local():
     try:
+        # Check if file exists, if not create sample data
+        if not os.path.exists(LOCAL_EXCEL_PATH):
+            print(f"Excel file not found at {LOCAL_EXCEL_PATH}, creating sample data...")
+            create_sample_excel_file()
+        
         df = pd.read_excel(LOCAL_EXCEL_PATH, engine="openpyxl")
         return df
     except Exception as e:
@@ -22,25 +27,72 @@ def fetch_excel_from_local():
         return None
 
 
+def create_sample_excel_file():
+    """Create a sample Excel file with demo data."""
+    try:
+        # Create sample data
+        sample_data = {
+            'Status': ['Complete', 'In Progress', 'Not Started', 'Complete', 'In Progress', 'High Priority', 'Complete', 'Not Started'],
+            'Priority': ['Low', 'Medium', 'High', 'Low', 'High', 'High', 'Medium', 'Low'],
+            'Percent Complete': [100, 50, 0, 100, 25, 10, 85, 0],
+            'Gallon Total': [10, 15, 0, 5, 20, 8, 12, 0],
+            'Value 1': [2.5, 7.8, 9.2, 1.1, 8.5, 9.8, 3.2, 4.7],
+            'DATE ADDED': [datetime.now() - pd.Timedelta(days=i) for i in range(8)],
+            'ASSET TAG': ['A001', 'A002', 'A003', 'A004', 'A005', 'A006', 'A007', 'A008'],
+            'LOCATION DESCRIPTION': ['Deck 1', 'Deck 2', 'Deck 3', 'Deck 1', 'Deck 2', 'Deck 3', 'Deck 1', 'Deck 2'],
+            'DECK LEVEL': ['Level 1', 'Level 2', 'Level 3', 'Level 1', 'Level 2', 'Level 3', 'Level 1', 'Level 2']
+        }
+        
+        # Create DataFrame and save to Excel
+        df = pd.DataFrame(sample_data)
+        
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(LOCAL_EXCEL_PATH), exist_ok=True)
+        
+        # Save to Excel
+        df.to_excel(LOCAL_EXCEL_PATH, index=False, engine='openpyxl')
+        print(f"Sample Excel file created at {LOCAL_EXCEL_PATH}")
+        
+    except Exception as e:
+        print(f"Error creating sample Excel file: {e}")
+
+
 def process_data(df):
     df = df.copy()
     if 'Percent Complete' in df.columns:
-        df['Percent Complete'] = (
-            df['Percent Complete'].astype(str).str.replace('%', '', regex=False).str.strip().replace('', '0').astype(
-                float)
-        )
+        # More robust percent complete processing
+        try:
+            df['Percent Complete'] = (
+                df['Percent Complete'].astype(str)
+                .str.replace('%', '', regex=False)
+                .str.strip()
+                .replace('', '0')
+                .replace('nan', '0')
+                .astype(float)
+            )
+        except Exception as e:
+            print(f"Error processing Percent Complete column: {e}")
+            df['Percent Complete'] = pd.to_numeric(df['Percent Complete'], errors='coerce').fillna(0)
     else:
         df['Percent Complete'] = 0
 
-    df['Status_lower'] = df['Status'].str.lower().fillna('')
-    df['Is Complete'] = df['Status_lower'] == 'complete'
-    df['Is Not Started'] = df['Status_lower'] == 'not started'
-    df['Is In Progress'] = df['Status_lower'] == 'in progress'
+    # Handle Status column with better error handling
+    if 'Status' in df.columns:
+        df['Status_lower'] = df['Status'].astype(str).str.lower().fillna('')
+        df['Is Complete'] = df['Status_lower'] == 'complete'
+        df['Is Not Started'] = df['Status_lower'] == 'not started'
+        df['Is In Progress'] = df['Status_lower'] == 'in progress'
+    else:
+        df['Status_lower'] = ''
+        df['Is Complete'] = False
+        df['Is Not Started'] = False
+        df['Is In Progress'] = False
 
     if "Priority" in df.columns:
-        df['Priority_lower'] = df['Priority'].str.lower().fillna('')
+        df['Priority_lower'] = df['Priority'].astype(str).str.lower().fillna('')
         df['Is High Priority'] = df['Priority_lower'] == 'high'
     else:
+        df['Priority_lower'] = ''
         df['Is High Priority'] = False
 
     if "Gallon Total" in df.columns:
@@ -56,8 +108,13 @@ def process_data(df):
     if "DATE ADDED" in df.columns:
         try:
             df['DATE ADDED'] = pd.to_datetime(df['DATE ADDED'], dayfirst=True, errors='coerce')
-        except Exception:
-            df['DATE ADDED'] = df['DATE ADDED']
+            # If conversion failed, fill with current date
+            df['DATE ADDED'] = df['DATE ADDED'].fillna(datetime.now())
+        except Exception as e:
+            print(f"Error processing DATE ADDED column: {e}")
+            df['DATE ADDED'] = datetime.now()
+    else:
+        df['DATE ADDED'] = datetime.now()
 
     return df
 
@@ -571,4 +628,10 @@ def close_drilldown_modal(n_clicks, is_open):
 
 # --- Run App ---
 if __name__ == '__main__':
-    app.run(debug=True, port=8050)
+    try:
+        print("Starting Maintenance & Asset Integrity Dashboard...")
+        print("Dashboard will be available at: http://localhost:8050")
+        app.run(debug=True, host='0.0.0.0', port=8050)
+    except Exception as e:
+        print(f"Error starting the application: {e}")
+        print("Please check if port 8050 is available and try again.")
